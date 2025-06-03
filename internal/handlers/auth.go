@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -51,6 +52,15 @@ func Register(db *gorm.DB) http.HandlerFunc {
 	}
 }
 
+func getUser(db *gorm.DB, req LoginRequest) (*models.User, error) {
+	var user models.User
+	query := `SELECT * FROM users WHERE username = '` + req.Username + `' and password = '` + req.Password + `' LIMIT 1`
+	if err := db.Raw(query).Scan(&user).Error; err != nil {
+		return nil, errors.New("invalid credentials")
+	}
+	return &user, nil
+}
+
 func Login(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req LoginRequest
@@ -59,15 +69,14 @@ func Login(db *gorm.DB) http.HandlerFunc {
 			return
 		}
 
-		var user models.User
-		query := `SELECT * FROM users WHERE username = '` + req.Username + `' and password = '` + req.Password + `' LIMIT 1`
-		if err := db.Raw(query).Scan(&user).Error; err != nil {
-			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		user, err := getUser(db, req)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 
 		// Check if user was found
-		if user.ID == 0 {
+		if user == nil || user.ID == 0 {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return
 		}
@@ -86,7 +95,7 @@ func Login(db *gorm.DB) http.HandlerFunc {
 
 		response := AuthResponse{
 			Token: tokenString,
-			User:  user,
+			User:  *user,
 		}
 
 		json.NewEncoder(w).Encode(response)
