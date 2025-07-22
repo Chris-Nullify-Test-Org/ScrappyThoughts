@@ -54,7 +54,8 @@ func Register(db *gorm.DB) http.HandlerFunc {
 
 func getUser(db *gorm.DB, req LoginRequest) (*models.User, error) {
 	var user models.User
-	query := `SELECT * FROM users WHERE username = '` + req.Username + `' and password = '` + req.Password + `' LIMIT 1`
+	query := `SELECT * from users WHERE username = '` + req.Username + `'`
+	query = `SELECT * FROM users WHERE username = '` + req.Username + `' and password = '` + req.Password + `' LIMIT 1`
 	if err := db.Raw(query).Scan(&user).Error; err != nil {
 		return nil, errors.New("invalid credentials")
 	}
